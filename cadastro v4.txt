@@ -1,0 +1,242 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Death Squad - Cadastro de Players</title>
+<style>
+body{
+  margin:0;
+  background:#0b0b0b;
+  font-family:Arial, Helvetica, sans-serif;
+  color:#fff;
+}
+.container{
+  max-width:900px;
+  margin:40px auto;
+  padding:30px;
+  background:#111;
+  border-radius:18px;
+  box-shadow:0 0 40px rgba(0,0,0,.7);
+}
+.logo{
+  text-align:center;
+  margin-bottom:20px;
+}
+.logo h1{
+  margin:0;
+  color:#00ffff;
+  letter-spacing:2px;
+}
+h2{
+  text-align:center;
+  margin-bottom:30px;
+}
+.form{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:15px;
+}
+.form input,.form select{
+  padding:10px;
+  border-radius:8px;
+  border:none;
+  background:#1a1a1a;
+  color:#fff;
+}
+button{
+  padding:12px;
+  border:none;
+  border-radius:10px;
+  background:#00ffff;
+  cursor:pointer;
+  font-weight:bold;
+}
+.actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:15px;
+  margin-top:15px;
+}
+.actions.full{
+  grid-template-columns:1fr 1fr 1fr;
+}
+.filter{
+  margin:25px 0;
+}
+.filter select{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  background:#1a1a1a;
+  color:#fff;
+  border:none;
+}
+.list{
+  margin-top:10px;
+}
+.player{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px;
+  border-bottom:1px solid #222;
+}
+.player strong{
+  font-size:15px;
+}
+.meta{
+  font-size:13px;
+  opacity:.8;
+}
+.delete{
+  background:none;
+  border:none;
+  color:#ff4d4d;
+  font-size:18px;
+  cursor:pointer;
+}
+.hidden{
+  display:none;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <h1>DEATH SQUAD</h1>
+  </div>
+  <h2>Cadastro de Players</h2>
+
+  <div class="form">
+    <input id="nome" placeholder="Nome do Player">
+    <select id="cargo">
+      <option>Membro</option>
+      <option>Vice-líder</option>
+      <option>Líder</option>
+    </select>
+    <select id="status">
+      <option>Ativo</option>
+      <option>Reserva</option>
+    </select>
+    <select id="line">
+      <option>Sem Line</option>
+      <option>Nexus</option>
+      <option>Rogue Ascension</option>
+      <option>Nightfall</option>
+      <option>Blackout Legion</option>
+      <option>Parallax</option>
+      <option>Death Single</option>
+    </select>
+  </div>
+
+  <div class="actions full">
+    <button onclick="add()">Adicionar Player</button>
+    <button onclick="exportar()">Exportar Dados</button>
+    <button onclick="document.getElementById('importFile').click()">Importar Dados</button>
+  </div>
+
+  <input type="file" id="importFile" class="hidden" accept="application/json" onchange="importar(event)">
+
+  <div class="filter">
+    <select onchange="filtrar(this.value)">
+      <option value="Todos">Filtrar por Line</option>
+      <option value="Todos">Todos</option>
+      <option>Nexus</option>
+      <option>Rogue Ascension</option>
+      <option>Nightfall</option>
+      <option>Blackout Legion</option>
+      <option>Parallax</option>
+      <option>Death Single</option>
+    </select>
+  </div>
+
+  <div class="list" id="lista"></div>
+</div>
+
+<script>
+const KEY = "death_squad_cadastro_v3";
+let players = JSON.parse(localStorage.getItem(KEY)) || [];
+
+function salvar(){
+  localStorage.setItem(KEY, JSON.stringify(players));
+}
+
+function add(){
+  const nomeEl = document.getElementById("nome");
+  const nome = nomeEl.value.trim();
+  if(!nome) return alert("Digite o nome");
+  players.push({
+    nome,
+    cargo: cargo.value,
+    status: status.value,
+    line: line.value
+  });
+  nomeEl.value="";
+  salvar();
+  render();
+}
+
+function render(filtro="Todos"){
+  const div = document.getElementById("lista");
+  div.innerHTML="";
+  players
+    .filter(p => filtro==="Todos" || p.line===filtro)
+    .forEach((p,i)=>{
+      div.innerHTML += `
+        <div class="player">
+          <div>
+            <strong>${p.nome}</strong>
+            <div class="meta">${p.cargo} · ${p.status} · ${p.line}</div>
+          </div>
+          <button class="delete" onclick="del(${i})">🗑️</button>
+        </div>
+      `;
+    });
+}
+
+function del(i){
+  if(!confirm("Excluir player?")) return;
+  players.splice(i,1);
+  salvar();
+  render();
+}
+
+function filtrar(v){
+  render(v);
+}
+
+function exportar(){
+  const data = {
+    players: players.map(p=>({ nome:p.nome, line:p.line }))
+  };
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "cadastro_players.json";
+  a.click();
+}
+
+function importar(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const data = JSON.parse(e.target.result);
+    if(!data.players) return alert("JSON inválido");
+    players = data.players.map(p=>({
+      nome:p.nome,
+      line:p.line || "Sem Line",
+      cargo:"Membro",
+      status:"Ativo"
+    }));
+    salvar();
+    render();
+  };
+  reader.readAsText(file);
+}
+
+render();
+</script>
+</body>
+</html>
